@@ -1,0 +1,76 @@
+name: 监控-史诗级韭菜
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检查更新并推送
+        env:
+          RSS_URL: "https://rsshub.inrr.moe/bilibili/user/dynamic/322005137"
+          WEBHOOK_URL: ${{ secrets.WEWORK_WEBHOOK_URL }}
+          CACHE_FILE: "shishiji_guid.txt"
+        run: |
+          echo "=== 获取RSS内容 ==="
+          RSS_CONTENT=$(curl -sL "$RSS_URL")
+          echo "内容前200字符: ${RSS_CONTENT:0:200}"
+          
+          # 解析最新动态标题、链接、唯一ID
+          NEW_TITLE=$(echo "$RSS_CONTENT" | grep -m1 '<title>' | sed 's/.*<title><!\[CDATA\[//;s/\]\]><\/title>.*//')
+          NEW_LINK=$(echo "$RSS_CONTENT" | grep -m1 '<link>' | sed 's/.*<link>//;s/<\/link>.*//')
+          NEW_GUID=$(echo "$RSS_CONTENT" | grep -m1 '<guid' | sed 's/.*<guid[^>]*>//;s/<\/guid>.*//')
+
+          echo "标题: $NEW_TITLE"
+          echo "链接: $NEW_LINK"
+          echo "ID: $NEW_GUID"
+
+          if [ -z "$NEW_GUID" ]; then
+            echo "❌ 解析失败，未获取到动态"
+            exit 1
+          fi
+
+          # 读取上次记录的ID
+          LAST_GUID=$(curl -sL https://raw.githubusercontent.com/${{ github.repository }}/cache/$CACHE_FILE 2>/dev/null || echo "")
+          echo "上次ID: $LAST_GUID"
+
+          if [ "$NEW_GUID" != "$LAST_GUID" ]; then
+            echo "✅ 检测到新动态，推送企业微信"
+            
+            # 调用企业微信推送
+            curl -s -X POST "$WEBHOOK_URL" \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \"msgtype\": \"markdown\",
+                \"markdown\": {
+                  \"content\": \"### 📺 史诗级韭菜 更新了\n\n**内容**：$NEW_TITLE\n\n**直达链接**：[点击查看]($NEW_LINK)\"
+                }
+              }"
+            
+            # 保存最新ID到缓存
+            echo "$NEW_GUID" > $CACHE_FILE
+            
+            # 提交到仓库持久化存储
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            
+            if git ls-remote --heads https://github.com/${{ github.repository }}.git cache | grep -q cache; then
+              git clone --branch cache --single-branch https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git cache-repo
+            else
+              git init cache-repo
+              cd cache-repo
+              git checkout -b cache
+              cd ..
+            fi
+            
+            cp $CACHE_FILE cache-repo/
+            cd cache-repo
+            git add $CACHE_FILE
+            git commit -m "update $CACHE_FILE" || true
+            git push --set-upstream origin cache || true
+          else
+            echo "ℹ️ 暂无新动态"
+          fi
