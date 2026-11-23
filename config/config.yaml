@@ -275,7 +275,7 @@ notification:
       webhook_url: ""                 # 企业微信机器人 webhook URL
       msg_type: "markdown"            # 消息类型：markdown(群机器人) | text(个人微信应用)
       style: "compact"                # 推送版式：compact(平台榜单紧凑版) | classic(上游原始版式)
-      max_per_platform: 5             # compact 版式下每个平台最多显示几条（0=不限制）
+      max_per_platform: 10            # compact 版式下每个平台最多显示几条（0=不限制）
 
     telegram:
       bot_token: ""                   # Telegram Bot Token

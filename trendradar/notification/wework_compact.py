@@ -18,7 +18,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 NEW_MARK = "[新]"
 
 # 单个平台最多展示条数（0 = 不限制）
-DEFAULT_MAX_PER_PLATFORM = 5
+DEFAULT_MAX_PER_PLATFORM = 10
 
 # 热词摘要最多展示个数
 DEFAULT_MAX_KEYWORDS = 8
@@ -56,6 +56,8 @@ def _rank_prefix(title_data: Dict) -> str:
 def _item_line(title_data: Dict, show_rank: bool = True) -> str:
     """单个条目的渲染：名次 + 标题链接 + [新]"""
     title = _clean(title_data.get("title"))
+    # 标题里的方括号会把 markdown 链接解析搞乱，替换成全角
+    title = title.replace("[", "［").replace("]", "］")
     url = _clean(title_data.get("mobile_url") or title_data.get("url") or "")
     body = f"[{title}]({url})" if (title and url) else title
     if not body:

@@ -410,6 +410,7 @@ def send_to_wework(
     ai_stats = _extract_ai_stats(ai_analysis)
 
     compact_done = False
+    print(f"{log_prefix}推送版式：{style} [{report_type}]")
     if not is_text_mode and style == "compact":
         # 紧凑版：平台榜单 + 文字 [新] 标记 + 抬头只出现一次
         try:
