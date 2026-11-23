@@ -789,6 +789,42 @@ class NewsAnalyzer:
 
         return stats, html_file, ai_result, rss_items, standalone_data, rss_new_items
 
+    def _build_platform_top(
+        self, results: Dict, id_to_name: Optional[Dict] = None, limit: int = 0
+    ) -> Dict[str, List[Dict]]:
+        """把爬取结果整理成「平台 → 前 N 条」的完整榜单
+
+        参数:
+            results: 爬虫结果 {平台ID: {标题: {ranks, url, mobileUrl}}}
+            id_to_name: 平台ID → 平台显示名
+            limit: 每个平台保留条数（0 = 读配置，默认 10）
+        """
+        if not results:
+            return {}
+        if not limit:
+            try:
+                limit = int(self.ctx.config.get("WEWORK_MAX_PER_PLATFORM", 10) or 10)
+            except (TypeError, ValueError):
+                limit = 10
+
+        top: Dict[str, List[Dict]] = {}
+        for source_id, titles in results.items():
+            name = (id_to_name or {}).get(source_id, source_id)
+            rows = []
+            for title, info in (titles or {}).items():
+                if not isinstance(info, dict):
+                    continue
+                rows.append({
+                    "title": title,
+                    "url": info.get("url", ""),
+                    "mobile_url": info.get("mobileUrl", ""),
+                    "ranks": info.get("ranks") or [],
+                })
+            rows.sort(key=lambda r: min(r["ranks"]) if r["ranks"] else 999)
+            if rows:
+                top[name] = rows[:limit]
+        return top
+
     def _send_notification_if_needed(
         self,
         stats: List[Dict],
@@ -866,6 +902,12 @@ class NewsAnalyzer:
             report_data["rss_total_count"] = self._rss_total_count
             report_data["rss_source_total"] = self._rss_source_total
             report_data["rss_source_failed"] = self._rss_source_failed
+
+            # 注入平台完整榜单（供企业微信紧凑版展示每平台前 N 条，不受关键词过滤影响）
+            if current_results:
+                report_data["platform_top"] = self._build_platform_top(
+                    current_results, id_to_name
+                )
 
             # 是否发送版本更新信息
             update_info_to_send = self.update_info if cfg["SHOW_VERSION_UPDATE"] else None

@@ -357,7 +357,8 @@ def send_to_wework(
     batch_interval: float = 1.0,
     msg_type: str = "markdown",
     style: str = "compact",
-    max_per_platform: int = 5,
+    max_per_platform: int = 10,
+    new_emoji: str = "✨",
     split_content_func: Callable = None,
     rss_items: Optional[list] = None,
     rss_new_items: Optional[list] = None,
@@ -423,6 +424,7 @@ def send_to_wework(
                 update_info=update_info,
                 batch_size=batch_size,
                 max_per_platform=max_per_platform,
+                new_emoji=new_emoji,
             )
             compact_done = bool(batches)
         except Exception as exc:  # 渲染异常时回退，绝不让推送整体失败

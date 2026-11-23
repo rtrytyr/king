@@ -417,7 +417,8 @@ def _load_webhook_config(config_data: Dict) -> Dict:
         "WEWORK_WEBHOOK_URL": _get_env_str("WEWORK_WEBHOOK_URL") or wework.get("webhook_url", ""),
         "WEWORK_MSG_TYPE": _get_env_str("WEWORK_MSG_TYPE") or wework.get("msg_type", "markdown"),
         "WEWORK_STYLE": _get_env_str("WEWORK_STYLE") or wework.get("style", "compact"),
-        "WEWORK_MAX_PER_PLATFORM": wework.get("max_per_platform", 5),
+        "WEWORK_MAX_PER_PLATFORM": wework.get("max_per_platform", 10),
+        "WEWORK_NEW_EMOJI": wework.get("new_emoji", "✨"),
         # Telegram
         "TELEGRAM_BOT_TOKEN": _get_env_str("TELEGRAM_BOT_TOKEN") or telegram.get("bot_token", ""),
         "TELEGRAM_CHAT_ID": _get_env_str("TELEGRAM_CHAT_ID") or telegram.get("chat_id", ""),
