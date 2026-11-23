@@ -31,6 +31,7 @@ import requests
 
 from .batch import add_batch_headers, get_max_batch_header_size
 from .formatters import convert_markdown_to_mrkdwn, strip_markdown
+from .wework_compact import render_wework_compact
 
 
 def _extract_ai_stats(ai_analysis) -> Optional[Dict]:
@@ -355,6 +356,8 @@ def send_to_wework(
     batch_size: int = 4000,
     batch_interval: float = 1.0,
     msg_type: str = "markdown",
+    style: str = "compact",
+    max_per_platform: int = 5,
     split_content_func: Callable = None,
     rss_items: Optional[list] = None,
     rss_new_items: Optional[list] = None,
@@ -406,20 +409,39 @@ def send_to_wework(
     ai_content = _render_ai_analysis(ai_analysis, "wework") if ai_analysis else None
     ai_stats = _extract_ai_stats(ai_analysis)
 
-    # 获取分批内容，预留批次头部空间
-    header_reserve = get_max_batch_header_size(header_format_type)
-    batches = split_content_func(
-        report_data, "wework", update_info, max_bytes=batch_size - header_reserve, mode=mode,
-        rss_items=rss_items,
-        rss_new_items=rss_new_items,
-        ai_content=ai_content,
-        standalone_data=standalone_data,
-        ai_stats=ai_stats,
-        report_type=report_type,
-    )
+    compact_done = False
+    if not is_text_mode and style == "compact":
+        # 紧凑版：平台榜单 + 文字 [新] 标记 + 抬头只出现一次
+        try:
+            batches = render_wework_compact(
+                report_data,
+                report_type=report_type,
+                mode=mode,
+                rss_items=rss_items,
+                ai_content=ai_content,
+                update_info=update_info,
+                batch_size=batch_size,
+                max_per_platform=max_per_platform,
+            )
+            compact_done = bool(batches)
+        except Exception as exc:  # 渲染异常时回退，绝不让推送整体失败
+            print(f"{log_prefix}紧凑版渲染失败，回退经典版式：{exc}")
 
-    # 统一添加批次头部（已预留空间，不会超限）
-    batches = add_batch_headers(batches, header_format_type, batch_size)
+    if not compact_done:
+        # 获取分批内容，预留批次头部空间
+        header_reserve = get_max_batch_header_size(header_format_type)
+        batches = split_content_func(
+            report_data, "wework", update_info, max_bytes=batch_size - header_reserve, mode=mode,
+            rss_items=rss_items,
+            rss_new_items=rss_new_items,
+            ai_content=ai_content,
+            standalone_data=standalone_data,
+            ai_stats=ai_stats,
+            report_type=report_type,
+        )
+
+        # 统一添加批次头部（已预留空间，不会超限）
+        batches = add_batch_headers(batches, header_format_type, batch_size)
 
     print(f"{log_prefix}消息分为 {len(batches)} 批次发送 [{report_type}]")
 
